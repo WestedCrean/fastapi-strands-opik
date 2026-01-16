@@ -1,0 +1,19 @@
+services:
+  # database:
+  #   image: "postgres"
+  #   container_name: "test_db"
+  #   environment:
+  #     - POSTGRES_USER=admin
+  #     - POSTGRES_PASSWORD=pass
+  #     - POSTGRES_DB=test_db
+  #   ports:
+  #     - "54320:5432"
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data
+  api:
+    build:
+      context: .
+      dockerfile: multistage.dockerfile
+    ports:
+      - "8080:8080"
+  pgdata:
