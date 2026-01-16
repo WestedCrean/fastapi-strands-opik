@@ -3,11 +3,15 @@ services:
     # Build the image from the Dockerfile in the current directory
     build:
       context: .
-      dockerfile: multistage.Dockerfile
+      #dockerfile: standalone.Dockerfile
 
     # Host the FastAPI application on port 8000
     ports:
       - "8000:8000"
+
+    environment:
+      # Set environment variables for the OpenAI API key and model
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
 
     develop:
       # Create a `watch` configuration to update the app
