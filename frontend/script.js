@@ -48,8 +48,8 @@ function scrollToBottom() {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Send message to API
-async function sendMessage(message) {
+// Send message to API with streaming support
+async function sendMessageStream(message, onChunk) {
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
@@ -64,14 +64,68 @@ async function sendMessage(message) {
             throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
         }
 
-        const data = await response.json();
-        return data;
+        // Check if the response is streaming (Server-Sent Events or plain text stream)
+        const contentType = response.headers.get('content-type');
+
+        if (contentType && (contentType.includes('text/event-stream') || contentType.includes('text/plain'))) {
+            // Handle streaming response
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+
+                if (done) break;
+
+                // Decode the chunk
+                buffer += decoder.decode(value, { stream: true });
+
+                // Process complete lines/chunks
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                for (const line of lines) {
+                    if (line.trim()) {
+                        // Handle SSE format
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            if (data !== '[DONE]') {
+                                onChunk(data);
+                            }
+                        } else {
+                            // Handle plain text chunks
+                            onChunk(line);
+                        }
+                    }
+                }
+            }
+
+            // Process any remaining data in buffer
+            if (buffer.trim()) {
+                if (buffer.startsWith('data: ')) {
+                    const data = buffer.slice(6);
+                    if (data !== '[DONE]') {
+                        onChunk(data);
+                    }
+                } else {
+                    onChunk(buffer);
+                }
+            }
+        } else {
+            // Handle non-streaming JSON response (fallback)
+            const data = await response.json();
+            const result = typeof data.result === 'string'
+                ? data.result
+                : JSON.stringify(data.result, null, 2);
+            onChunk(result);
+        }
     } catch (error) {
         throw error;
     }
 }
 
-// Handle form submission
+// Handle form submission with streaming
 chatForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -95,25 +149,58 @@ chatForm.addEventListener('submit', async (e) => {
     chatMessages.appendChild(loadingIndicator);
     scrollToBottom();
 
+    // Create assistant message container for streaming
+    let assistantMessageDiv = null;
+    let assistantContentDiv = null;
+    let accumulatedContent = '';
+
     try {
-        // Send message to API
-        const response = await sendMessage(message);
+        // Send message to API with streaming
+        await sendMessageStream(message, (chunk) => {
+            // Remove loading indicator on first chunk
+            if (loadingIndicator.parentNode) {
+                loadingIndicator.remove();
+            }
 
-        // Remove loading indicator
-        loadingIndicator.remove();
+            // Create message element on first chunk
+            if (!assistantMessageDiv) {
+                assistantMessageDiv = document.createElement('div');
+                assistantMessageDiv.className = 'message assistant';
 
-        // Add assistant response to chat
-        const assistantMessage = createMessageElement(
-            typeof response.result === 'string'
-                ? response.result
-                : JSON.stringify(response.result, null, 2),
-            'assistant'
-        );
-        chatMessages.appendChild(assistantMessage);
+                const labelDiv = document.createElement('div');
+                labelDiv.className = 'message-label';
+                labelDiv.textContent = 'Assistant';
+
+                assistantContentDiv = document.createElement('div');
+                assistantContentDiv.className = 'message-content';
+
+                assistantMessageDiv.appendChild(labelDiv);
+                assistantMessageDiv.appendChild(assistantContentDiv);
+                chatMessages.appendChild(assistantMessageDiv);
+            }
+
+            // Append chunk to content
+            accumulatedContent += chunk;
+            assistantContentDiv.textContent = accumulatedContent;
+            scrollToBottom();
+        });
+
+        // If no chunks were received, remove loading indicator
+        if (loadingIndicator.parentNode) {
+            loadingIndicator.remove();
+        }
+
+        // If no message was created, create an empty one
+        if (!assistantMessageDiv) {
+            const assistantMessage = createMessageElement('No response received', 'assistant');
+            chatMessages.appendChild(assistantMessage);
+        }
 
     } catch (error) {
         // Remove loading indicator
-        loadingIndicator.remove();
+        if (loadingIndicator.parentNode) {
+            loadingIndicator.remove();
+        }
 
         // Show error message
         const errorMessage = createMessageElement(

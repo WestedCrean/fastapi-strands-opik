@@ -1,5 +1,6 @@
 import os
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from pydantic import BaseModel
@@ -61,15 +62,14 @@ async def query_agent(
             status_code=503, detail="Orchestrator agent not initialized"
         )
 
-    try:
-        result = await orchestrator_agent.run(request.message)
-        return {
-            "query": request.message,
-            "result": result.message["content"][0]["text"],
-        }
-    except Exception as e:
-        print(f"Error processing query: {result.__dict__}")
-        raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+    async def stream_response():
+        try:
+            async for d in orchestrator_agent.stream_response(request.message):
+                yield d
+        except Exception as e:
+            yield f"Error: {str(e)}"
+
+    return StreamingResponse(stream_response(), media_type="text/plain")
 
 
 @app.get("/")

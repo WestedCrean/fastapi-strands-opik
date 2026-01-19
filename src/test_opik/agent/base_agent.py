@@ -15,7 +15,24 @@ class BaseAgent:
         self.agent: Agent = None
         self.recursion_limit: int = recursion_limit
 
-    @opik.track(project_name=os.getenv("OPIK_PROJECT_NAME", "test-opik"))
+    @opik.track()
     async def run(self, user_query: str) -> str:
         """Run the orchestrator agent to answer a user query."""
         return await self.agent.invoke_async(user_query)
+
+    @opik.track()
+    async def stream_response(self, user_query: str):
+        """Stream the response from the agent for a given user query."""
+        agent_stream = self.agent.stream_async(user_query)
+
+        try:
+            async for event in agent_stream:
+                if "data" in event:
+                    yield event["data"]
+                elif "current_tool_use" in event and event["current_tool_use"].get(
+                    "name"
+                ):
+                    tool_name = event["current_tool_use"]["name"]
+                    yield f"\n[Using tool: {tool_name}]\n"
+        except Exception as e:
+            yield f"Error: {str(e)}"
