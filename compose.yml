@@ -12,6 +12,14 @@ services:
     environment:
       # Set environment variables for the OpenAI API key and model
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+      OPIK_API_KEY: ${OPIK_API_KEY}
+      OTEL_EXPORTER_OTLP_ENDPOINT: https://www.comet.com/opik/api/v1/private/otel
+      OTEL_EXPORTER_OTLP_HEADERS: "Authorization=${OPIK_API_KEY},projectName=opik-fastapi,Comet-Workspace=westedcrean"
+      OPIK_PROJECT_NAME: opik-fastapi
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY}
+
 
     develop:
       # Create a `watch` configuration to update the app

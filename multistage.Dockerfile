@@ -35,4 +35,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 # Run the FastAPI application by default
 
-CMD ["fastapi", "dev", "--host", "0.0.0.0", "/app/src/test_opik"]
+CMD ["fastapi", "dev", "--host", "0.0.0.0", "--reload", "/app/src/test_opik"]
