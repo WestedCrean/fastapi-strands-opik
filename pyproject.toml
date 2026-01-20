@@ -7,11 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.128.0",
     "google-adk>=1.18.0",
+    "nest-asyncio>=1.6.0",
     "openai>=2.15.0",
     "opik>=1.9.85",
     "polars[deltalake,pydantic]>=1.37.1",
     "strands-agents-tools>=0.2.19",
     "strands-agents[anthropic,gemini,mistral,otel]>=1.22.0",
+    "streamlit>=1.53.0",
 ]
 
 
